@@ -1,6 +1,6 @@
 # ParaBank / Parasoft — Selenium Web Automation Framework
 
-A Gradle-based UI automation framework for the ParaBank (Parasoft) demo application, built with **Selenium WebDriver** and **TestNG**, and wired up with **ExtentReports** for rich, interactive HTML reporting. The suite covers core banking flows: user registration, login, opening a new account, and account overview.
+A Gradle-based UI automation framework for the ParaBank (Parasoft) demo application, built with **Selenium WebDriver** and **TestNG**. It supports two reporting options: **ExtentReports** for rich, interactive HTML reporting, and **Allure** for single-file HTML reports generated from the command line. The suite covers core banking flows: user registration, login, opening a new account, and account overview.
 
 ## Tech Stack
 
@@ -10,7 +10,8 @@ A Gradle-based UI automation framework for the ParaBank (Parasoft) demo applicat
 | Browser automation | `org.seleniumhq.selenium:selenium-java` | 4.44.0 |
 | Test data generation | `com.thedeanda:lorem` | 2.2 |
 | File utilities | `commons-io:commons-io` | 2.15.1 |
-| Reporting | `com.aventstack:extentreports` | 5.1.2 |
+| Reporting (ExtentReports) | `com.aventstack:extentreports` | 5.1.2 |
+| Reporting (Allure) | `io.qameta.allure:allure-testng` | 2.32.0 |
 
 Build & dependency management is handled by **Gradle**.
 
@@ -19,6 +20,7 @@ Build & dependency management is handled by **Gradle**.
 - JDK 17+ installed and `JAVA_HOME` configured
 - Gradle (or use the bundled wrapper `./gradlew`)
 - A browser and matching WebDriver (Selenium 4 resolves most drivers automatically via Selenium Manager)
+- Allure CLI on your `PATH` (see [Allure Reporting](#allure-reporting) below) if you want Allure reports
 
 ## Project Structure
 
@@ -49,6 +51,7 @@ Build & dependency management is handled by **Gradle**.
 │       │       └── util                      // Helpers / utilities
 │       └── resources
 │           ├── config.properties             // Environment & run configuration
+│           ├── allure.properties             // Allure results directory config
 │           └── regressionSuites.xml          // TestNG suite definition
 ├── .gitignore
 └── build.gradle
@@ -94,6 +97,8 @@ dependencies {
     // https://mvnrepository.com/artifact/com.aventstack/extentreports
     // Updated ExtentReports version
     testImplementation 'com.aventstack:extentreports:5.1.2'
+    // Allure TestNG adapter
+    implementation 'io.qameta.allure:allure-testng:2.32.0'
 }
 
 test {
@@ -156,7 +161,7 @@ public void addFailInfo(String message) {
 }
 ```
 
-## Usage
+### Usage
 
 Log steps from inside your page objects or tests:
 
@@ -192,6 +197,142 @@ Or via the suite file:
 </suite>
 ```
 
+### Viewing the ExtentReports report
+
+After a run, open the generated ExtentReports HTML file in a browser. The output location is whatever path is set in `ReportManager` — commonly something like `test-output/ExtentReport.html`. The report includes per-test status, your `addInfo` / `addFailInfo` entries, timestamps, and any screenshots attached on failure.
+
+## Allure Reporting
+
+Allure is an optional, second reporting layer. It collects test results into `build/allure-results` during the run and generates a self-contained single-file HTML report.
+
+### Installing the Allure CLI (Windows, via Scoop)
+
+These steps install the Allure command-line tool using [Scoop](https://scoop.sh/). Run them in a **normal** PowerShell window (not as Administrator).
+
+1. **Allow scripts for the current user and install Scoop:**
+
+   ```powershell
+   Set-ExecutionPolicy RemoteSigned -Scope CurrentUser
+   irm get.scoop.sh | iex
+   ```
+
+2. **Verify Scoop:**
+
+   ```powershell
+   scoop --version
+   ```
+
+3. **Install Allure:**
+
+   ```powershell
+   scoop install allure
+   ```
+
+4. **Verify Allure:**
+
+   ```powershell
+   allure --version
+   ```
+
+> On macOS use `brew install allure`; on Linux use the distribution package or download from the [Allure releases page](https://github.com/allure-framework/allure2/releases). Once the CLI is on your `PATH`, the Gradle integration below works the same on all platforms.
+
+### Configuring Allure in the project
+
+1. **Create `src/test/resources/allure.properties`** with the results directory:
+
+   ```properties
+   allure.results.directory=build/allure-results
+   ```
+
+2. **Add the Allure dependency** to the `dependencies { }` block in `build.gradle`:
+
+   ```gradle
+   implementation 'io.qameta.allure:allure-testng:2.32.0'
+   ```
+
+3. **Register a task to generate a single-file HTML report.** Add this to `build.gradle`:
+
+   ```gradle
+   def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+   def allureResultsDir = layout.buildDirectory.dir("allure-results").get().asFile
+   println "allureResultsDir: $allureResultsDir"
+   def allureReportDir = layout.buildDirectory.dir("allure-report").get().asFile
+   println "allureReportDir: $allureReportDir"
+
+   tasks.register('generateSingleAllureHtml', Exec) {
+       group = "reporting"
+       description = "Generates single-file Allure HTML report"
+
+       if (isWindows) {
+           commandLine "cmd", "/c",
+                   "allure",
+                   "generate",
+                   allureResultsDir.absolutePath,
+                   "--clean",
+                   "-o",
+                   allureReportDir.absolutePath,
+                   "--single-file"
+       } else {
+           commandLine "allure",
+                   "generate",
+                   allureResultsDir.absolutePath,
+                   "--clean",
+                   "-o",
+                   allureReportDir.absolutePath,
+                   "--single-file"
+       }
+
+       doLast {
+           def report = new File(allureReportDir, "index.html")
+           if (report.exists()) {
+               report.renameTo(new File(allureReportDir, "ErpTestApiAutomationReport.html"))
+           }
+       }
+   }
+   ```
+
+4. **Hook report generation into the test task.** Inside the `test { }` block, just below `useTestNG()`, add:
+
+   ```gradle
+   test {
+       useTestNG()
+       ignoreFailures = true
+       systemProperty "allure.results.directory", layout.buildDirectory.dir("allure-results").get().asFile.absolutePath
+       finalizedBy tasks.generateSingleAllureHtml
+   }
+   ```
+
+   With `finalizedBy`, the single-file report is generated automatically after every test run.
+
+### Generating and viewing the Allure report
+
+**Step 1 — Run the tests** (from the IntelliJ terminal or any shell):
+
+```bash
+.\gradlew clean test
+```
+
+To run a specific suite when multiple suite files exist (e.g. `testng-smoke.xml`, `testng-regression.xml`):
+
+```bash
+.\gradlew test -Psuite=smoke
+.\gradlew test -Psuite=regression
+```
+
+**Step 2 — Generate the HTML report manually** (optional; the `finalizedBy` hook already does this after `test`):
+
+```bash
+allure generate build/allure-results --clean -o allure-report
+```
+
+**Step 3 — Open the report in a browser:**
+
+```bash
+allure open allure-report
+```
+
+The single-file report produced by the Gradle task is written to `build/allure-report/` (renamed to `ErpTestApiAutomationReport.html` by the task's `doLast` block).
+
 ## Configuration
 
 Runtime settings live in `src/test/resources/config.properties` (e.g. base URL, browser, timeouts). Update these to point at your target environment.
@@ -199,8 +340,8 @@ Runtime settings live in `src/test/resources/config.properties` (e.g. base URL, 
 ## Running the Tests
 
 ```bash
-# Run the full suite
-./gradlew test
+# Run the full suite (also triggers Allure report generation via finalizedBy)
+./gradlew clean test
 
 # Run the TestNG suite file explicitly
 ./gradlew test -PsuiteXmlFile=regressionSuites.xml
@@ -208,21 +349,13 @@ Runtime settings live in `src/test/resources/config.properties` (e.g. base URL, 
 
 > The exact suite-file flag depends on how `build.gradle` is configured to consume `regressionSuites.xml`. Adjust to match your setup.
 
-## Viewing the Report
-
-After a run, open the generated ExtentReports HTML file in a browser. The output location is whatever path is set in `ReportManager` — commonly something like:
-
-```
-/build/extentReport/ExtentReport.html
-```
-
-The report includes per-test status, your `addInfo` / `addFailInfo` entries, timestamps, and any screenshots attached on failure.
-
 ## Troubleshooting
 
 - **`ReportTestManager.getTest()` returns null** — ensure `TestListener` is registered and creates a test node in `onTestStart`.
-- **Report file not generated** — confirm `ReportManager` flushes the report in the listener's `onFinish`.
+- **ExtentReports file not generated** — confirm `ReportManager` flushes the report in the listener's `onFinish`.
 - **`Status` cannot be resolved** — add `import com.aventstack.extentreports.Status;`.
+- **`allure` command not found** — confirm the Allure CLI is installed and on your `PATH` (`allure --version`).
+- **Empty Allure report** — verify `allure.properties` points at `build/allure-results` and that the `test` task sets the `allure.results.directory` system property.
 - **Dependency not found** — re-run with `--refresh-dependencies` and verify Maven Central is reachable.
 
 ## License
