@@ -1,0 +1,34 @@
+plugins {
+    id 'java'
+}
+
+group = 'langChain4jAiAgent'
+version = '1.0-SNAPSHOT'
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+// Source: https://mvnrepository.com/artifact/org.testng/testng
+    testImplementation 'org.testng:testng:7.12.0'
+
+    // Source: https://mvnrepository.com/artifact/org.seleniumhq.selenium/selenium-java
+    implementation 'org.seleniumhq.selenium:selenium-java:4.44.0'
+
+    //dummy text generator
+    // https://mvnrepository.com/artifact/com.thedeanda/lorem
+    testImplementation 'com.thedeanda:lorem:2.2'
+
+
+    //FileUtils
+    implementation 'commons-io:commons-io:2.15.1'
+
+    // https://mvnrepository.com/artifact/com.aventstack/extentreports
+    // Updated ExtentReports version
+    testImplementation 'com.aventstack:extentreports:5.1.2'
+}
+
+test {
+    useTestNG()
+}
