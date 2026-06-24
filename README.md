@@ -16,7 +16,7 @@ Build & dependency management is handled by **Gradle**.
 
 ## Prerequisites
 
-- JDK 11+ installed and `JAVA_HOME` configured
+- JDK 17+ installed and `JAVA_HOME` configured
 - Gradle (or use the bundled wrapper `./gradlew`)
 - A browser and matching WebDriver (Selenium 4 resolves most drivers automatically via Selenium Manager)
 
@@ -213,7 +213,7 @@ Runtime settings live in `src/test/resources/config.properties` (e.g. base URL, 
 After a run, open the generated ExtentReports HTML file in a browser. The output location is whatever path is set in `ReportManager` — commonly something like:
 
 ```
-test-output/ExtentReport.html
+/build/extentReport/ExtentReport.html
 ```
 
 The report includes per-test status, your `addInfo` / `addFailInfo` entries, timestamps, and any screenshots attached on failure.
