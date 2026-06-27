@@ -6,7 +6,7 @@ public class ParaBankUtil {
 
     public static void waitForDomStable(){
         try {
-            Thread.sleep(1500);
+            Thread.sleep(500);
         } catch (InterruptedException e) {
             throw new RuntimeException(e);
         }
