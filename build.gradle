@@ -72,7 +72,7 @@ tasks.register('generateSingleAllureHtml', Exec) {
     doLast {
         def report = new File(allureReportDir, "index.html")
         if (report.exists()) {
-            report.renameTo(new File(allureReportDir, "ErpTestApiAutomationReport.html"))
+            report.renameTo(new File(allureReportDir, "Batch15TestApiAutomationReport.html"))
         }
     }
 }
