@@ -27,8 +27,59 @@ dependencies {
     // https://mvnrepository.com/artifact/com.aventstack/extentreports
     // Updated ExtentReports version
     testImplementation 'com.aventstack:extentreports:5.1.2'
+
+// allure testng integration
+    implementation 'io.qameta.allure:allure-testng:2.32.0'
+}
+
+
+def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+def allureResultsDir = layout.buildDirectory.dir("allure-results").get().asFile
+println "allureResultsDir: $allureResultsDir"
+def allureReportDir = layout.buildDirectory.dir("allure-report").get().asFile
+println "allureReportDir: $allureReportDir"
+
+tasks.register('generateSingleAllureHtml', Exec) {
+    group = "reporting"
+    description = "Generates single-file Allure HTML report"
+
+//    dependsOn test
+//
+//    doFirst {
+//        delete allureReportDir
+//    }
+
+
+    if (isWindows) {
+        commandLine "cmd", "/c",
+                "allure",
+                "generate",
+                allureResultsDir.absolutePath,
+                "--clean",
+                "-o",
+                allureReportDir.absolutePath,
+                "--single-file"
+    } else {
+        commandLine "allure",
+                "generate",
+                allureResultsDir.absolutePath,
+                "--clean",
+                "-o",
+                allureReportDir.absolutePath,
+                "--single-file"
+    }
+
+    doLast {
+        def report = new File(allureReportDir, "index.html")
+        if (report.exists()) {
+            report.renameTo(new File(allureReportDir, "ErpTestApiAutomationReport.html"))
+        }
+    }
 }
 
 test {
     useTestNG()
+    ignoreFailures = true
+    systemProperty "allure.results.directory", layout.buildDirectory.dir("allure-results").get().asFile.absolutePath
+    finalizedBy tasks.generateSingleAllureHtml
 }
