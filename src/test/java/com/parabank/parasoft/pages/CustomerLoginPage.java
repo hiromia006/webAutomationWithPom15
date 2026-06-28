@@ -34,10 +34,7 @@ public class CustomerLoginPage extends BasePage {
     }
 
     public RegisterPage clickRegisterLink() {
-        ParaBankUtil.waitForDomStable();
-//        setWait(By.cssSelector("a[href='register.htm']"));
         clickElement(By.linkText("Register"));
-//        new Actions(driver).mo.moveToElement(getElement(By.xpath("//a[@href='register.htm']"))).click().perform();
         return navigateToPage(RegisterPage.class);
     }
 }
